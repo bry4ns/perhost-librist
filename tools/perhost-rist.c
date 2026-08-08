@@ -32,8 +32,8 @@ static uint64_t backup_generation(const char *path) {
 }
 static int backup_has_stream(const char *path, const char *username) {
  FILE *f=fopen(path,"rb"); if(!f)return 0; fseek(f,0,SEEK_END); long n=ftell(f); rewind(f); char *json=calloc(1,(size_t)n+1); if(!json){fclose(f);return 0;} fread(json,1,(size_t)n,f);fclose(f);
- cJSON *root=cJSON_Parse(json);free(json);if(!root)return 0; cJSON *connections=cJSON_GetObjectItemCaseSensitive(root,"connections"); int found=0;
- cJSON *item=NULL;cJSON_ArrayForEach(item,connections){cJSON *id=cJSON_GetObjectItemCaseSensitive(item,"srtlaStreamId");cJSON *suspended=cJSON_GetObjectItemCaseSensitive(item,"suspended");if(cJSON_IsString(id)&&strcmp(id->valuestring,username)==0&&!cJSON_IsTrue(suspended)){found=1;break;}}
+ cJSON *root=cJSON_Parse(json);free(json);if(!root)return 0; cJSON *connections=cJSON_GetObjectItemCaseSensitive(root,"Connections");if(!connections)connections=cJSON_GetObjectItemCaseSensitive(root,"connections"); int found=0;
+ cJSON *item=NULL;cJSON_ArrayForEach(item,connections){cJSON *id=cJSON_GetObjectItemCaseSensitive(item,"SRTLAStreamID");if(!id)id=cJSON_GetObjectItemCaseSensitive(item,"srtlaStreamId");cJSON *suspended=cJSON_GetObjectItemCaseSensitive(item,"Suspended");if(!suspended)suspended=cJSON_GetObjectItemCaseSensitive(item,"suspended");if(cJSON_IsString(id)&&strcmp(id->valuestring,username)==0&&!cJSON_IsTrue(suspended)){found=1;break;}}
  cJSON_Delete(root);return found;
 }
 static void lookup_stream(char *username, librist_verifier_lookup_data_t *out, int *hashversion, uint64_t *generation, void *arg) {
