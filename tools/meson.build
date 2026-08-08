@@ -94,8 +94,8 @@ executable('udp2udp',
 srt_lib = cc.find_library('srt', required: false, has_headers: ['srt/srt.h'])
 if srt_lib.found()
  executable('perhost-rist',
- 	['perhost-rist.c', srp_shared, tools_deps, rev_target],
- 	dependencies: [librist_dep, srt_lib, tools_dependencies, threads],
+ 	['perhost-rist.c', tools_deps, rev_target],
+ 	dependencies: [librist_dep, srt_lib, tools_dependencies, threads, cjson_lib],
  	include_directories: inc,
  	install: should_install)
 endif
