@@ -354,6 +354,14 @@ RIST_API int rist_connection_status_callback_set(struct rist_ctx *ctx, connectio
 typedef int (*rist_auth_handler_connect_cb)(void *arg, const char* conn_ip, uint16_t conn_port, const char* local_ip, uint16_t local_port,struct rist_peer *peer);
 typedef int (*rist_auth_handler_disconnect_cb)(void *arg, struct rist_peer *peer);
 
+/*
+ * Called once after a peer completes EAP-SRP authentication. The username is
+ * owned by libRIST and is valid only for the duration of this callback.
+ * Applications can use this to bind their authenticated principal to peer.
+ */
+typedef void (*rist_srp_auth_callback_t)(void *arg, struct rist_peer *peer,
+		const char *username);
+
 /**
  * @brief Assign dynamic authentication handler
  *
@@ -371,6 +379,10 @@ RIST_API int rist_auth_handler_set(struct rist_ctx *ctx,
 		rist_auth_handler_connect_cb connect_cb,
 		rist_auth_handler_disconnect_cb disconnect_cb,
 		void *arg);
+
+/** Set the callback invoked after EAP-SRP authentication succeeds. */
+RIST_API int rist_srp_auth_callback_set(struct rist_ctx *ctx,
+		rist_srp_auth_callback_t callback, void *arg);
 
 
 RIST_API uint32_t rist_peer_get_id(const struct rist_peer *peer);

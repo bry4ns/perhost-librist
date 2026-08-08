@@ -962,6 +962,30 @@ int rist_auth_handler_set(struct rist_ctx *ctx,
 	return rist_auth_handler(cctx, conn_cb, disconn_cb, arg);
 }
 
+int rist_srp_auth_callback_set(struct rist_ctx *ctx,
+		rist_srp_auth_callback_t callback, void *arg)
+{
+	if (!ctx)
+		return -1;
+	struct rist_common_ctx *cctx = rist_struct_get_common(ctx);
+	if (!cctx)
+		return -1;
+	cctx->srp_auth_callback = callback;
+	cctx->srp_auth_callback_argument = arg;
+	return 0;
+}
+
+int rist_receiver_flow_authorize_callback_set(struct rist_ctx *ctx,
+		receiver_flow_authorize_callback_t callback, void *arg)
+{
+	if (!ctx || ctx->mode != RIST_RECEIVER_MODE || !ctx->receiver_ctx)
+		return -1;
+	struct rist_common_ctx *cctx = &ctx->receiver_ctx->common;
+	cctx->receiver_flow_authorize_callback = callback;
+	cctx->receiver_flow_authorize_callback_argument = arg;
+	return 0;
+}
+
 int rist_stats_free(const struct rist_stats *stats_container)
 {
 	if (!stats_container)

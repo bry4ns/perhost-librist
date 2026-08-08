@@ -94,6 +94,7 @@ RIST_PRIV int eap_request_identity(struct eapsrp_ctx *ctx);
 RIST_PRIV int _librist_proto_eap_start(struct eapsrp_ctx *ctx);
 RIST_PRIV void eap_periodic(struct eapsrp_ctx *ctx);
 RIST_PRIV bool eap_is_authenticated(struct eapsrp_ctx *ctx);
+RIST_PRIV const char *eap_get_username(const struct eapsrp_ctx *ctx);
 RIST_PRIV void eap_delete_ctx(struct eapsrp_ctx **in);
 RIST_PRIV int eap_clone_ctx(struct eapsrp_ctx *in, struct rist_peer *peer);
 RIST_PRIV void eap_set_ip_string(struct eapsrp_ctx *ctx, char ip_string[]);

@@ -1274,6 +1274,13 @@ bool eap_is_authenticated(struct eapsrp_ctx *ctx)
 	return authenticated;
 }
 
+const char *eap_get_username(const struct eapsrp_ctx *ctx)
+{
+	if (!ctx)
+		return NULL;
+	return ctx->config.username;
+}
+
 static void eap_periodic_impl(struct eapsrp_ctx *ctx)
 {
 	uint64_t now = timestampNTP_u64();

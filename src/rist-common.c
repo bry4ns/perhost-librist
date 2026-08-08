@@ -2234,6 +2234,15 @@ static bool rist_receiver_rtcp_authenticate(struct rist_peer *peer, uint32_t seq
 
 		// the peer could already be part of a flow and it came back after timing out
 		if (!peer->flow) {
+			if (ctx->common.receiver_flow_authorize_callback &&
+				ctx->common.receiver_flow_authorize_callback(
+					ctx->common.receiver_flow_authorize_callback_argument,
+					peer, flow_id) != 0) {
+				rist_log_priv(&ctx->common, RIST_LOG_WARN,
+					"Application rejected peer %u for flow %"PRIu32"\n",
+					peer->adv_peer_id, flow_id);
+				return false;
+			}
 			if (rist_receiver_associate_flow(peer, flow_id) != 1) {
 				rist_log_priv(&ctx->common, RIST_LOG_ERROR, "Could not create/associate peer to flow.\n");
 				return false;
@@ -4087,6 +4096,10 @@ protocol_bypass:
 					rist_log_priv(get_cctx(peer), RIST_LOG_INFO,
 						"Peer %d EAP Authentication succeeded\n", peer->adv_peer_id);
 					p->eap_authentication_state = 2;
+					if (cctx->srp_auth_callback) {
+						cctx->srp_auth_callback(cctx->srp_auth_callback_argument, p,
+							eap_get_username(p->eap_ctx));
+					}
 					/* A caller-sender leg that re-authenticated after going
 					 * silent (see try_caller_socket_rebind) cleared its
 					 * connection-level authenticated flag to leave the bond

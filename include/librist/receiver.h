@@ -113,6 +113,13 @@ RIST_API int rist_receiver_data_callback_set2(struct rist_ctx *ctx, receiver_dat
  */
 typedef int (*receiver_session_timeout_callback_t)(void *arg, uint32_t flow_id);
 
+/*
+ * Called before a receiver associates an authenticated peer with a flow. A
+ * non-zero return value rejects the association and prevents flow creation.
+ */
+typedef int (*receiver_flow_authorize_callback_t)(void *arg,
+		struct rist_peer *peer, uint32_t flow_id);
+
 /**
  * @brief Enable Session Timeout callback channel
  *
@@ -124,6 +131,9 @@ typedef int (*receiver_session_timeout_callback_t)(void *arg, uint32_t flow_id);
  * @return 0 on success, -1 on error
  */
 RIST_API int rist_receiver_session_timeout_callback_set(struct rist_ctx *ctx, receiver_session_timeout_callback_t, void *arg);
+
+RIST_API int rist_receiver_flow_authorize_callback_set(struct rist_ctx *ctx,
+		receiver_flow_authorize_callback_t callback, void *arg);
 
 /**
  * @brief Free rist data block
