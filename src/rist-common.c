@@ -3742,7 +3742,7 @@ protocol_bypass:
 		/* Some Main-profile senders announce themselves with KEEPALIVE but do
 		 * not send EAPOL START. Prompt them as soon as their dynamic peer is
 		 * addressable instead of waiting for an authentication that never starts. */
-		if (p->eap_ctx && p->eap_ctx->config.role == EAP_ROLE_AUTHENTICATOR)
+		if (p->eap_ctx)
 			eap_request_identity(p->eap_ctx);
 		if (p->multicast_receiver && p->eap_ctx) {
 			_librist_proto_eap_start(p->eap_ctx);
