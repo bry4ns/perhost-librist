@@ -3693,7 +3693,9 @@ protocol_bypass:
 	}
 
 
-	if (!p && (peer->listening || peer->multicast_sender) && (gre_proto == RIST_GRE_PROTOCOL_TYPE_REDUCED || gre_proto == RIST_GRE_PROTOCOL_TYPE_KEEPALIVE || gre_proto == RIST_GRE_PROTOCOL_TYPE_FULL || cctx->profile == RIST_PROFILE_SIMPLE)) {
+	/* An authenticatee may send EAPOL START before its first keepalive. Create
+	 * the dynamic listener peer so the authenticator can return its challenge. */
+	if (!p && (peer->listening || peer->multicast_sender) && (gre_proto == RIST_GRE_PROTOCOL_TYPE_REDUCED || gre_proto == RIST_GRE_PROTOCOL_TYPE_KEEPALIVE || gre_proto == RIST_GRE_PROTOCOL_TYPE_FULL || gre_proto == RIST_GRE_PROTOCOL_TYPE_EAPOL || cctx->profile == RIST_PROFILE_SIMPLE)) {
 		/* No match, new peer creation when on listening mode */
 		p = peer_initialize(NULL, peer->sender_ctx, peer->receiver_ctx);
 		p->handled_first = false;
