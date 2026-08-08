@@ -91,6 +91,15 @@ executable('udp2udp',
 	include_directories: inc,
 	install: should_install)
 
+srt_lib = cc.find_library('srt', required: false, has_headers: ['srt/srt.h'])
+if srt_lib.found()
+ executable('perhost-rist',
+ 	['perhost-rist.c', srp_shared, tools_deps, rev_target],
+ 	dependencies: [librist_dep, srt_lib, tools_dependencies, threads],
+ 	include_directories: inc,
+ 	install: should_install)
+endif
+
 # risttunnel: IP tunnel over RIST (TUN support is now in librist)
 if host_machine.system() == 'linux' or host_machine.system() == 'darwin' or host_machine.system() == 'windows'
 	executable('risttunnel',
