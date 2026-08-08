@@ -81,7 +81,10 @@ static int recv_data(void *arg, struct rist_data_block *b) {
 }
 int main(int argc,char **argv) {
  if(argc!=5){fprintf(stderr,"usage: %s rist-url backup-file srt-host srt-port\n",argv[0]);return 2;} struct gateway g={.host=argv[3],.port=atoi(argv[4])};pthread_mutex_init(&g.lock,NULL);signal(SIGINT,stop);signal(SIGTERM,stop);srt_startup();
- struct rist_logging_settings log={0};log.log_level=RIST_LOG_INFO;struct rist_ctx *ctx;if(rist_receiver_create(&ctx,RIST_PROFILE_MAIN,&log))return 1;struct rist_peer_config *cfg=NULL;if(rist_parse_address2(argv[1],&cfg))return 1;struct rist_peer *listener;if(rist_peer_create(ctx,&listener,cfg))return 1;rist_peer_config_free2(&cfg);
+ struct rist_logging_settings log=LOGGING_SETTINGS_INITIALIZER; struct rist_logging_settings *log_ptr=&log;
+ if (rist_logging_set(&log_ptr, RIST_LOG_INFO, NULL, NULL, NULL, stderr) != 0) return 1;
+ rist_log(&log, RIST_LOG_INFO, "perhost-rist starting on %s\n", argv[1]);
+ struct rist_ctx *ctx;if(rist_receiver_create(&ctx,RIST_PROFILE_MAIN,&log))return 1;struct rist_peer_config *cfg=NULL;if(rist_parse_address2(argv[1],&cfg))return 1;struct rist_peer *listener;if(rist_peer_create(ctx,&listener,cfg))return 1;rist_peer_config_free2(&cfg);
  if(rist_enable_eap_srp_2(listener,NULL,NULL,lookup_stream,argv[2])||rist_srp_auth_callback_set(ctx,srp_ok,&g)||rist_receiver_flow_authorize_callback_set(ctx,allow_flow,&g)||rist_receiver_data_callback_set2(ctx,recv_data,&g)||rist_start(ctx))return 1;
  while(running) sleep(1); rist_destroy(ctx); srt_cleanup(); return 0;
 }
