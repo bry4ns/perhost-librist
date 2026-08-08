@@ -967,6 +967,8 @@ int rist_srp_auth_callback_set(struct rist_ctx *ctx,
 {
 	if (!ctx)
 		return -1;
+	if (ctx->mode != RIST_RECEIVER_MODE || !ctx->receiver_ctx)
+		return -1;
 	struct rist_common_ctx *cctx = rist_struct_get_common(ctx);
 	if (!cctx)
 		return -1;
