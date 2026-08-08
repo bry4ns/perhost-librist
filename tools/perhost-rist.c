@@ -61,7 +61,7 @@ static void close_session(struct session *s) {
 
 static SRTSOCKET connect_srt(struct gateway *g, struct session *s) {
  SRTSOCKET sock=srt_create_socket(); if(sock==SRT_INVALID_SOCK)return SRT_INVALID_SOCK;
- int live=SRTT_LIVE, latency=3000; srt_setsockflag(sock, SRTO_TRANSTYPE, &live, sizeof(live)); srt_setsockflag(sock, SRTO_LATENCY, &latency, sizeof(latency));
+ int live=SRTT_LIVE, latency=300; srt_setsockflag(sock, SRTO_TRANSTYPE, &live, sizeof(live)); srt_setsockflag(sock, SRTO_LATENCY, &latency, sizeof(latency));
  char sid[320]; snprintf(sid,sizeof(sid),"publish/live/%s",s->username);
  srt_setsockflag(sock, SRTO_STREAMID,sid,(int)strlen(sid));
  struct sockaddr_in a={0}; a.sin_family=AF_INET;a.sin_port=htons(g->port);
