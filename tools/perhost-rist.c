@@ -82,8 +82,8 @@ static int disconnect_peer(void *arg, struct rist_peer *peer) {
 }
 static int allow_flow(void *arg, struct rist_peer *peer, uint32_t flow) {
  struct gateway *g=arg; pthread_mutex_lock(&g->lock); const char *u=peer_username(g,peer); struct session *s=flow_session(g,flow);
- if(!u || (s && strcmp(s->username,u)!=0) || (!s && g->session_count==MAX_SESSIONS)){pthread_mutex_unlock(&g->lock);return -1;}
- if(!s){s=&g->sessions[g->session_count++];memset(s,0,sizeof(*s));s->flow=flow;snprintf(s->username,sizeof(s->username),"%s",u);if(open_srt(g,s)){s->closed=1;pthread_mutex_unlock(&g->lock);return -1;}}
+ if(!u || (s && (s->closed || strcmp(s->username,u)!=0)) || (!s && g->session_count==MAX_SESSIONS)){pthread_mutex_unlock(&g->lock);return -1;}
+ if(!s){s=&g->sessions[g->session_count];memset(s,0,sizeof(*s));s->flow=flow;snprintf(s->username,sizeof(s->username),"%s",u);if(open_srt(g,s)){srt_close(s->srt);memset(s,0,sizeof(*s));pthread_mutex_unlock(&g->lock);return -1;}g->session_count++;}
  pthread_mutex_unlock(&g->lock); return 0;
 }
 static int recv_data(void *arg, struct rist_data_block *b) {
