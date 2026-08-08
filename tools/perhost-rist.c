@@ -19,10 +19,11 @@
 
 #define MAX_SESSIONS 256
 #define MAX_PEERS 1024
-#define MAX_QUEUE_PACKETS 512
+#define MAX_QUEUE_PACKETS 2048
 
 struct packet { struct packet *next; size_t len; char data[]; };
-struct session { uint32_t flow; struct rist_peer *peer; char username[256]; SRTSOCKET srt; pthread_t writer; pthread_mutex_t lock; pthread_cond_t ready; struct packet *head, *tail; size_t queued; int closed; int writer_started; int sync_initialized; };
+struct gateway;
+struct session { uint32_t flow; struct rist_peer *peer; char username[256]; SRTSOCKET srt; pthread_t writer; pthread_mutex_t lock; pthread_cond_t ready; struct packet *head, *tail; size_t queued; int closed; int writer_started; int sync_initialized; struct gateway *gateway; };
 struct gateway { struct session sessions[MAX_SESSIONS]; size_t session_count; struct { struct rist_peer *peer; char username[256]; } peers[MAX_PEERS]; size_t peer_count; pthread_mutex_t lock; const char *host; int port; };
 static volatile sig_atomic_t running = 1;
 
@@ -58,29 +59,54 @@ static void close_session(struct session *s) {
  memset(s,0,sizeof(*s)); s->srt=SRT_INVALID_SOCK;
 }
 
+static SRTSOCKET connect_srt(struct gateway *g, struct session *s) {
+ SRTSOCKET sock=srt_create_socket(); if(sock==SRT_INVALID_SOCK)return SRT_INVALID_SOCK;
+ int live=SRTT_LIVE, latency=3000; srt_setsockflag(sock, SRTO_TRANSTYPE, &live, sizeof(live)); srt_setsockflag(sock, SRTO_LATENCY, &latency, sizeof(latency));
+ char sid[320]; snprintf(sid,sizeof(sid),"publish/live/%s",s->username);
+ srt_setsockflag(sock, SRTO_STREAMID,sid,(int)strlen(sid));
+ struct sockaddr_in a={0}; a.sin_family=AF_INET;a.sin_port=htons(g->port);
+ if(inet_pton(AF_INET,g->host,&a.sin_addr)!=1 || srt_connect(sock,(struct sockaddr*)&a,sizeof(a))==SRT_ERROR){
+  fprintf(stderr,"perhost-rist: SRT connect failed for flow %u: %s\n",s->flow,srt_getlasterror_str()); srt_close(sock); return SRT_INVALID_SOCK;
+ }
+ return sock;
+}
+
+static int reconnect_srt(struct session *s, SRTSOCKET failed) {
+ struct gateway *g=s->gateway; pthread_mutex_lock(&s->lock);
+ if(s->closed || s->srt!=failed){pthread_mutex_unlock(&s->lock);return -1;}
+ s->srt=SRT_INVALID_SOCK; pthread_mutex_unlock(&s->lock); if(failed!=SRT_INVALID_SOCK)srt_close(failed);
+ SRTSOCKET sock=connect_srt(g,s); if(sock==SRT_INVALID_SOCK)return -1;
+ pthread_mutex_lock(&s->lock);
+ if(s->closed){pthread_mutex_unlock(&s->lock);srt_close(sock);return -1;}
+ s->srt=sock; pthread_cond_signal(&s->ready); pthread_mutex_unlock(&s->lock); return 0;
+}
+
 static void *writer(void *arg) {
  struct session *s = arg;
- while (1) {
+  while (1) {
   pthread_mutex_lock(&s->lock);
   while (!s->head && !s->closed) pthread_cond_wait(&s->ready, &s->lock);
   if(s->closed){pthread_mutex_unlock(&s->lock);break;}
   struct packet *p=s->head; if(p){s->head=p->next;if(!s->head)s->tail=NULL;s->queued--;}
-  SRTSOCKET sock=s->srt;
-  pthread_mutex_unlock(&s->lock);
-  if (!p) continue;
-  if (srt_sendmsg2(sock, p->data, (int)p->len, NULL) == SRT_ERROR) { pthread_mutex_lock(&s->lock); s->closed=1; pthread_cond_signal(&s->ready); pthread_mutex_unlock(&s->lock); }
-  free(p);
- }
- return NULL;
+   SRTSOCKET sock=s->srt;
+   pthread_mutex_unlock(&s->lock);
+   if (!p) continue;
+   if(sock==SRT_INVALID_SOCK){
+    pthread_mutex_lock(&s->lock); if(!s->closed && s->queued<MAX_QUEUE_PACKETS){p->next=s->head;s->head=p;if(!s->tail)s->tail=p;s->queued++;} else free(p); pthread_mutex_unlock(&s->lock); if(reconnect_srt(s,SRT_INVALID_SOCK)!=0)usleep(100000); continue;
+   }
+   if (srt_sendmsg2(sock, p->data, (int)p->len, NULL) == SRT_ERROR) {
+    fprintf(stderr,"perhost-rist: SRT send failed for flow %u: %s; reconnecting\n",s->flow,srt_getlasterror_str());
+    pthread_mutex_lock(&s->lock); if(!s->closed && s->queued<MAX_QUEUE_PACKETS){p->next=s->head;s->head=p;if(!s->tail)s->tail=p;s->queued++;} else free(p); pthread_mutex_unlock(&s->lock);
+    if(reconnect_srt(s,sock)!=0){fprintf(stderr,"perhost-rist: SRT reconnect failed for flow %u; retrying\n",s->flow);usleep(100000);}
+   } else free(p);
+  }
+  return NULL;
 }
 static int open_srt(struct gateway *g, struct session *s) {
  s->srt=SRT_INVALID_SOCK; if(pthread_mutex_init(&s->lock,NULL)!=0)return -1; s->sync_initialized=1;
  if(pthread_cond_init(&s->ready,NULL)!=0){pthread_mutex_destroy(&s->lock);s->sync_initialized=0;return -1;}
- s->srt=srt_create_socket(); if(s->srt==SRT_INVALID_SOCK)return -1;
- int live=SRTT_LIVE; srt_setsockflag(s->srt, SRTO_TRANSTYPE, &live, sizeof(live));
- char sid[320]; snprintf(sid,sizeof(sid),"publish/live/%s",s->username); srt_setsockflag(s->srt, SRTO_STREAMID,sid,(int)strlen(sid));
- struct sockaddr_in a={0}; a.sin_family=AF_INET;a.sin_port=htons(g->port); if(inet_pton(AF_INET,g->host,&a.sin_addr)!=1 || srt_connect(s->srt,(struct sockaddr*)&a,sizeof(a))==SRT_ERROR)return -1;
- if(pthread_create(&s->writer,NULL,writer,s)!=0)return -1;
+  s->gateway=g; s->srt=connect_srt(g,s); if(s->srt==SRT_INVALID_SOCK)return -1;
+  if(pthread_create(&s->writer,NULL,writer,s)!=0)return -1;
  s->writer_started=1;
  return 0;
 }
