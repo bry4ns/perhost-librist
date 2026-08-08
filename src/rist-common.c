@@ -2234,6 +2234,17 @@ static bool rist_receiver_rtcp_authenticate(struct rist_peer *peer, uint32_t seq
 
 		// the peer could already be part of a flow and it came back after timing out
 		if (!peer->flow) {
+			/* Main/Advanced can complete EAP on a sibling data peer while the
+			 * RTCP peer is the one that announces the flow. Publish the same
+			 * authenticated principal for the peer about to be authorized. */
+			if (ctx->common.srp_auth_callback) {
+				const char *username = eap_get_username(peer->eap_ctx);
+				if ((!username || !username[0]) && peer->parent)
+					username = eap_get_username(peer->parent->eap_ctx);
+				if (username && username[0])
+					ctx->common.srp_auth_callback(ctx->common.srp_auth_callback_argument,
+						peer, username);
+			}
 			if (ctx->common.receiver_flow_authorize_callback &&
 				ctx->common.receiver_flow_authorize_callback(
 					ctx->common.receiver_flow_authorize_callback_argument,
