@@ -1150,6 +1150,11 @@ void eap_reset_authenticatee(struct eapsrp_ctx *ctx)
 				EAP_LOG_PREFIX"Failed to send EAPOL START after socket rebind; "
 				"periodic retransmit will retry\n");
 	}
+	if (ret < 0) {
+		rist_log_priv2(ctx->config.logging_settings, RIST_LOG_ERROR,
+			EAP_LOG_PREFIX"Rejected EAPOL frame: version=%u type=%u body_len=%zu result=%d\n",
+			(unsigned)eap_version, (unsigned)hdr->eaptype, body_len, ret);
+	}
 	pthread_mutex_unlock(&ctx->eap_lock);
 }
 
